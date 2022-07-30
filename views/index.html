@@ -12,11 +12,13 @@
   <form>
     <button id="pay-button">pay</button>
   </form>
+  <p>status: <scan id="status-indicator"></scan></p>
 
   <script type="text/javascript" src="https://cdn.omise.co/omise.js"></script>
   <script>
     const isToken = (nonce) => nonce.startsWith("tokn_")
 
+    const statusIndecator = document.getElementById("status-indicator")
     const btn = document.getElementById("pay-button")
     OmiseCard.configure({
       publicKey: "pkey_test_5smbjs6xb6845qcglp3"

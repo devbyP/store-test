@@ -1,8 +1,8 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
+	"errors"
 	"html/template"
 	"log"
 	"net/http"
@@ -11,14 +11,12 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/jackc/pgx/v4"
 	"github.com/joho/godotenv"
 	"github.com/omise/omise-go"
 	"github.com/omise/omise-go/operations"
 )
 
 var temps *template.Template
-var db *pgx.Conn
 
 // keys should store somewhere else, like system environment variable, where other people cannot see them.
 var (
@@ -33,13 +31,6 @@ func main() {
 	if !strings.HasPrefix(omisePublicKey, "pkey_") || !strings.HasPrefix(omisePrivateKey, "skey_") {
 		log.Fatal("missing omise key(s)")
 	}
-
-	db = connectDB(os.Getenv("DB_CONNECT"))
-	migrateCtx, migrateCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer migrateCancel()
-	migrateProduct(migrateCtx)
-	migrateCustomerInfo(migrateCtx)
-	migrateProductTransactions(migrateCtx)
 
 	// setting up server router using gorilla mux tools kit
 	r := mux.NewRouter()
@@ -82,9 +73,22 @@ type (
 	// for request body
 	// input object
 	paymentInfoCreditCard struct {
-		Amount int64  `json:"amount"`
-		Token  string `json:"token"`
+		// sell item info
+		ItemId         string `json:"itemId"`
+		PurchaseAmount int    `json:"purchaseAmount"`
+
+		// payment info
+		// pay amount calculate at client.
+		// need to recheck the pay amount from client and the item info again, before do the charge.
+		PayAmount int64 `json:"payAmount"`
+
+		// credit card encoded token receive from omise server.
+		// client need to send credit card data directly to omise server.
+		// after the client successfully get response from omise server(success status with token).
+		// then client start request to this server with token and transaction info for server to handle.
+		Token string `json:"token"`
 	}
+
 	// for response
 	// output
 	paymentSuccessResponse struct {
@@ -111,7 +115,7 @@ func handlePay(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(e)
 	}
 	charge, create := &omise.Charge{}, &operations.CreateCharge{
-		Amount:   payInfo.Amount,
+		Amount:   payInfo.PayAmount,
 		Currency: "thb",
 		Card:     payInfo.Token,
 	}
@@ -129,96 +133,57 @@ func handlePay(w http.ResponseWriter, r *http.Request) {
 func getProducts(w http.ResponseWriter, r *http.Request) {
 	encoder := json.NewEncoder(w)
 	encoder.SetEscapeHTML(true)
+	prods, _ := prodCon.getDbProducts()
+	encoder.Encode(prods)
 }
+
+var prodCon IProductDB = ProductController{}
+
+var ProductNotFound = errors.New("product not found")
 
 type Product struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Price       string `json:"price"`
-	TotalAmount int    `json:"totalAmount"`
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Price       float64 `json:"price"`
+	TotalAmount int     `json:"totalAmount"`
 }
 
-// connect to database using connection string as parameter.
-func connectDB(c string) *pgx.Conn {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10*time.Second))
-	defer cancel()
-	conn, err := pgx.Connect(ctx, c)
-	if err != nil {
-		log.Fatal("cannot connect to database")
-	}
-	// ping to recheck if the connection is ready.
-	err = conn.Ping(ctx)
-	if err != nil {
-		log.Fatal("database connection ping fail")
-	}
-	// later assign to global variable
-	return conn
+var products = map[string]*Product{
+	"1234": {
+		ID:          "1234",
+		Name:        "Item1",
+		Price:       1800,
+		TotalAmount: 100,
+	},
+	"44fc": {
+		ID:          "44fc",
+		Name:        "Item2",
+		Price:       2000,
+		TotalAmount: 50,
+	},
 }
 
-// check and create table for products if not exist
-// receive conntext from outside function.
-// inject db object from outside function in case need multiple table for difference db.
-// exit program if error.
-func migrateProduct(ctx context.Context) {
-	// price 100 = 1 thb
-	_, err := db.Exec(ctx, `CREATE TABLE IF NOT EXISTS products(
-		id uuid PRIMARY KEY,
-		name varchar(50) NOT NULL,
-		price integer default 20000
-	)`)
-	if err != nil {
-		log.Fatal("error, create product table. " + err.Error())
-	}
+type IProductDB interface {
+	getDbProduct(id string) *Product
+	getDbProducts() (map[string]*Product, error)
+	itemPurchaseUpdate(id string, amount int) error
 }
 
-func migrateProductTransactions(ctx context.Context) {
-	_, err := db.Exec(ctx, `
-		CREATE TABLE IF NOT EXISTS product_transactions(
-			id uuid PRIMARY KEY,
-			product_id uuid REFERENCE products (id) NOT NULL,
-			customer_id uuid REFERENCE customer_info (id) NOT NULL,
-			action varchar(10) DEFAULT 'out',
-			out_amount integer NOT NULL,
-			created_on timestamp NOT NULL DEFAULT now()
-		)
-	`)
-	if err != nil {
-		log.Fatal("error, create productTransactions table. " + err.Error())
-	}
+type ProductController struct{}
+
+func (p ProductController) getDbProduct(id string) *Product {
+	return products[id]
 }
 
-func migrateCustomerInfo(ctx context.Context) {
-	_, err := db.Exec(ctx, `
-	CREATE TABLE IF NOT EXISTS customer_info(
-		id uuid PRIMARY KEY,
-		first_name varchar(100) NOT NULL,
-		last_name varchar(100) NOT NULL,
-		email varchar(155) NOT NULL,
-		phone varchar(12)
-	)`)
-	if err != nil {
-		log.Fatal("error , create customerInfo table. " + err.Error())
+func (p ProductController) itemPurchaseUpdate(id string, amount int) error {
+	if _, ok := products[id]; !ok {
+		return ProductNotFound
 	}
+	products[id].TotalAmount -= amount
+	return nil
 }
 
 // get the list of product from database.
-func getDbProducts(ctx context.Context) ([]*Product, error) {
-	tx, err := db.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := tx.Query(ctx, "SELECT id, name, price FROM products")
-	if err != nil {
-		return nil, err
-	}
-	prods := []*Product{}
-	for rows.Next() {
-		prod := &Product{}
-		err := rows.Scan(&prod.ID, &prod.Name, &prod.Price)
-		if err != nil {
-			return nil, err
-		}
-		prods = append(prods, prod)
-	}
-	return prods, nil
+func (p ProductController) getDbProducts() (map[string]*Product, error) {
+	return products, nil
 }
