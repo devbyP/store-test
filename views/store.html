@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Store</title>
+  <style>
+    /* no arrow for input type number*/
+    /* Chrome, Safari, Edge, Opera */
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    /* Firefox */
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+  </style>
+</head>
+<body>
+  <ul class="product-list">
+    {{ range .products }}
+      <li class="product-item-card">
+        <p>{{ .Name }}</p>
+        <p>{{ .Price }} บาท</p>
+        <p>จำนวนทั้งหมด {{ .TotalAmount }}</p>
+        <div class="product-amount">
+          <button data-item- id="{{ .ID }}" class="add">+</button>
+          <input data-item-id="{{ .ID }}" type="number" />
+          <button data-item-id="{{ .ID }}" class="minus">-</button>
+        </div>
+      </li>
+    {{ end }}
+  </ul>
+  <div class="purchase-conclude">
+    <div class="item-list" id="item-list">
+      <p>cart</p>
+    </div>
+    <p id="item-count"></p>
+    <p id="total-m"></p>
+  </div>
+  <button> to payment </button>
+
+  <script>
+    
+  </script>
+</body>
+</html>
