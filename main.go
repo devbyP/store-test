@@ -23,6 +23,7 @@ func main() {
 
 	r.HandleFunc("/", serveStore)
 	r.HandleFunc("/getPay", servePayment)
+	r.HandleFunc("/process", processOrder)
 	r.HandleFunc("/pay", handleBuy)
 	r.HandleFunc("/product", getProducts)
 

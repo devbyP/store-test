@@ -32,6 +32,14 @@ func servePayment(w http.ResponseWriter, r *http.Request) {
 	paymentTemp.Execute(w, nil)
 }
 
+func processOrder(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	data := map[string]map[string]int{}
+	json.Unmarshal([]byte(r.FormValue("data")), &data)
+	fmt.Println(data)
+	http.Redirect(w, r, "/getPay?data=\"pass\"", http.StatusFound)
+}
+
 // type use in handlePay function
 type (
 	// for request body

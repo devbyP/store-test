@@ -41,10 +41,27 @@
     <p id="item-count"></p>
     <p id="total-m"></p>
   </div>
-  <button> to payment </button>
-
+  <form action="/process" method="POST" id="to-payment">
+    <input type="hidden" id="cart-data" name="data" value="abc">
+    <button id="pay-btn"> to payment </button>
+  </form>
   <script>
-    
+    const cart = {
+      item1:{
+        amount: 1,
+      },
+      item2:{
+        amount: 4,
+      }
+    }
+    const pay = document.getElementById("pay-btn")
+    const datainput = document.getElementById("cart-data")
+    const form = document.getElementById("to-payment")
+    pay.addEventListener("click", (e) => {
+      e.preventDefault()
+      datainput.setAttribute("value", JSON.stringify(cart))
+      form.submit()
+    })
   </script>
 </body>
 </html>
