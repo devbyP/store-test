@@ -28,16 +28,31 @@ func serveStore(w http.ResponseWriter, r *http.Request) {
 
 // payment page.
 func servePayment(w http.ResponseWriter, r *http.Request) {
+	orderId := r.URL.Query().Get("order")
 	paymentTemp := template.Must(template.ParseFiles("./views/payment.html"))
+	order, err := orderStore.getOrder(orderId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	if order.Status != pending {
+		http.Error(w, "order already closed", http.StatusBadRequest)
+	}
 	paymentTemp.Execute(w, nil)
+}
+
+type customerOrder struct {
+	ID  string `json:"id"`
+	Qty int    `json:"qty"`
 }
 
 func processOrder(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	data := map[string]map[string]int{}
-	json.Unmarshal([]byte(r.FormValue("data")), &data)
-	fmt.Println(data)
-	http.Redirect(w, r, "/getPay?data=\"pass\"", http.StatusFound)
+	var order []customerOrder
+	json.Unmarshal([]byte(r.FormValue("data")), &order)
+	// register order to order store
+	// get order id
+	fmt.Println(order)
+	http.Redirect(w, r, "/getPay?order=", http.StatusFound)
 }
 
 // type use in handlePay function
