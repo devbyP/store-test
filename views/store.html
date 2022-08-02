@@ -27,40 +27,81 @@
         <p>{{ .Price }} บาท</p>
         <p>จำนวนทั้งหมด {{ .TotalAmount }}</p>
         <div class="product-amount">
-          <button data-item- id="{{ .ID }}" class="add">+</button>
-          <input data-item-id="{{ .ID }}" type="number" />
-          <button data-item-id="{{ .ID }}" class="minus">-</button>
+          <form class="cart-form">
+            <input type="hidden" name="itemId" value="{{ .ID }}" />
+            <button type="submit" class="add">เพิ่มลงตระกร้า</button>
+          </form>
         </div>
       </li>
     {{ end }}
   </ul>
-  <div class="purchase-conclude">
-    <div class="item-list" id="item-list">
-      <p>cart</p>
-    </div>
-    <p id="item-count"></p>
-    <p id="total-m"></p>
-  </div>
   <form action="/process" method="POST" id="to-payment">
-    <input type="hidden" id="cart-data" name="data" value="abc">
+    <div class="purchase-conclude" id="cart">
+      <p>cart</p>
+      <ul class="item-list" id="item-list">
+        <!-- item in cart here update from cart data in script -->
+      </ul>
+      <p id="item-count"></p>
+      <p id="total-m"></p>
+    </div>
     <button id="pay-btn"> to payment </button>
   </form>
+
   <script>
-    const cart = {
-      item1:{
-        amount: 1,
-      },
-      item2:{
-        amount: 4,
-      }
+    // cart js
+    // store cart data by add to cart function (click event on product show "add to cart" button).
+    const cartData = {}
+    /**
+     * this get all the cart element to update in updateCartDom function.
+     * 
+     * cart | cart :
+     * Is a child div of form that action to /process(to payment page).
+     * This is the wrapper div of detail element of cart.
+     */
+    const cart = document.getElementById("cart")
+
+    /**
+     * item-list | cartItemList :
+     * The unordered list element contain list of cart data element.
+     */
+    const cartItemList = document.getElementById("item-list")
+
+    /**
+     * item-count | totalItem :
+     * total number of item in cart.
+     * simply sum of amount in cart data.
+    */
+    const totalItem = document.getElementById("item-count")
+
+    /**
+     * total-m | totalPrice :
+     * total price to pay for products.
+     * sum of each item amount * item price
+     * value of total price cannot be more than 15,000 bath 1.500.000 satang
+    */
+    const totalPrice = document.getElementById("total-m")
+    
+    // use this function as a callback function in other event that update cart data
+    function updateCartDom() {
+
     }
+
     const pay = document.getElementById("pay-btn")
-    const datainput = document.getElementById("cart-data")
     const form = document.getElementById("to-payment")
+    const cartForms = document.getElementsByClassName("cart-form")
+    for (let i = 0; i < cartForms.length; i++) {
+      cartForms.item(i).addEventListener("submit", (e) => {
+        e.preventDefault()
+        const data = new FormData(e.target)
+        cartData[data.get("itemId")] = data.get("qty")
+      })
+    }
     pay.addEventListener("click", (e) => {
       e.preventDefault()
-      datainput.setAttribute("value", JSON.stringify(cart))
-      form.submit()
+      const data = new FormData(form)
+      console.log(data.getAll("itemId"))
+      console.log(data.getAll("qty"))
+      console.log(Object.fromEntries(data))
     })
   </script>
 </body>
