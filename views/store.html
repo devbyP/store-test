@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Test Store</title>
   <style>
-    /* no arrow for input type number*/
+    /* no increment/decrement arrow for input type number*/
     /* Chrome, Safari, Edge, Opera */
     input::-webkit-outer-spin-button,
     input::-webkit-inner-spin-button {
@@ -20,6 +20,7 @@
   </style>
 </head>
 <body>
+  <!-- product list from server -->
   <ul class="product-list">
     {{ range .products }}
       <li class="product-item-card">
@@ -35,7 +36,17 @@
       </li>
     {{ end }}
   </ul>
-  <form action="/process" method="POST" id="to-payment">
+  <!--
+    cart element.
+    hidden when cart empty.
+  -->
+  <form id="to-next" method="GET" action="/owner-input">
+    <label for="cusFirstName">First name</label>
+    <input id="cusFirstName" type="text" name="firstName" />
+    <label for="cusLastName">Last name</label>
+    <input id="cusLastName" type="text" name="lastName" />
+    <label for="cusEmail">Email</label>
+    <input id="cusEmail" type="email" name="email" />
     <div class="purchase-conclude" id="cart">
       <p>cart</p>
       <ul class="item-list" id="item-list">
@@ -44,21 +55,34 @@
       <p id="item-count"></p>
       <p id="total-m"></p>
     </div>
-    <button id="pay-btn"> to payment </button>
+    <button id="buy-btn"> buy </button>
   </form>
 
   <script>
+    const productData = [
+      {
+        id: "1234",
+        name: "Item1",
+        price: 1800
+      },
+      {
+        id: "44fc",
+        name: "Item2",
+        price: 2000
+      }
+    ]
     // cart js
     // store cart data by add to cart function (click event on product show "add to cart" button).
     const cartData = {}
+
     /**
      * this get all the cart element to update in updateCartDom function.
      * 
-     * cart | cart :
-     * Is a child div of form that action to /process(to payment page).
+     * cart | cartDiv :
+     * Is a child div of form that action to (next page).
      * This is the wrapper div of detail element of cart.
      */
-    const cart = document.getElementById("cart")
+    const cartDiv = document.getElementById("cart")
 
     /**
      * item-list | cartItemList :
@@ -81,27 +105,84 @@
     */
     const totalPrice = document.getElementById("total-m")
     
+    // cart element to render inside item list ul.
+    function createCartItem(itemName, qty, price) {
+      const li = document.createElement("li")
+      const name = document.createElement("p")
+      const qtyele = document.createElement("p")
+      const priceEle = document.createElement("p")
+      name.textContent = itemName
+      qtyele.textContent = qty
+      priceEle.textContent = price
+      li.append(name, qtyele, price)
+      return li
+    }
+    function findProduct(id) {
+      return productData.find(product => product.id == id)
+    }
     // use this function as a callback function in other event that update cart data
     function updateCartDom() {
-
+      const cartK = Object.keys(cartData)
+      cartItemList.innerHTML = ""
+      for (let i = 0; i < cartK.length; i++) {
+        const prod = findProduct(cartK[i])
+        cartItemList.appendChild(createCartItem(prod.name, cartData[cartK[i]], prod.price))
+      }
     }
 
-    const pay = document.getElementById("pay-btn")
-    const form = document.getElementById("to-payment")
     const cartForms = document.getElementsByClassName("cart-form")
-    for (let i = 0; i < cartForms.length; i++) {
-      cartForms.item(i).addEventListener("submit", (e) => {
-        e.preventDefault()
-        const data = new FormData(e.target)
-        cartData[data.get("itemId")] = data.get("qty")
-      })
+
+    // Prepare item data, add them to cartData, if item already exist increment amount by 1.
+    const addToCart = (cb) => (e) => {
+      e.preventDefault()
+      const data = new FormData(e.target)
+      const itemId = data.get("itemId")
+      if (cartData[itemId]) {
+        cartData[itemId] += 1
+      } else {
+        cartData[itemId] = 1
+      }
+      cb()
     }
-    pay.addEventListener("click", (e) => {
+    // Loop over all cart-form class element and add listener for "add to cart" form submit event.
+    for (let i = 0; i < cartForms.length; i++) {
+      // No submit form.
+      console.log('add event to btn')
+      cartForms.item(i).addEventListener("submit", addToCart(updateCartDom))
+    }
+
+    // Form to submit to post request to server.
+    const form = document.getElementById("to-next")
+
+    // Button to go to the next owner input page.
+    const buy = document.getElementById("buy-btn")
+    /**
+     * event get cartData and set them for server to compute price and make order.
+     * use form submit to post request to server url "/process".
+    */
+    buy.addEventListener("click", (e) => {
       e.preventDefault()
       const data = new FormData(form)
-      console.log(data.getAll("itemId"))
-      console.log(data.getAll("qty"))
-      console.log(Object.fromEntries(data))
+      const firstName = data.get("firstName")
+      const lastName = data.get("lastName")
+      const email = data.get("email")
+      const preparedCart = []
+      const cartK = Object.keys(cartData)
+      for (let i = 0; i < cartK.length; i++) {
+        preparedCart.push({id: cartK[i], qty: cartData[cartK[i]]})
+      }
+      fetch("/process", {
+        method: "POST",
+        headers: {"Content-type": "application/json"},
+        body: JSON.stringify({
+          customer: {firstName, lastName, email},
+          cart: preparedCart,
+        })
+      })
+        .then(res => res.json())
+        .then(data => console.log(data))
+        .catch(error => console.log(error))
+
     })
   </script>
 </body>

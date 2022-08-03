@@ -18,15 +18,14 @@ const (
 type order struct {
 	// product id as key
 	// amount as value
-	Purchase map[string]int
-	Qty      int
-	Status   int
-	Owner    user
+	Purchase map[string]int `json:"purchase"`
+	Status   int            `json:"status,omitempty"`
+	Owner    *customer      `json:"customer"`
 }
 
 type orders map[string]*order
 
-var orderStore orders
+var orderStore orders = map[string]*order{}
 
 func (o orders) getOrder(id string) (*order, error) {
 	var od *order
