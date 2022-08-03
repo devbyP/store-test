@@ -8,64 +8,78 @@
 </head>
 <body>
   total
-  
-  <form>
-    <button id="pay-button">pay</button>
-  </form>
+  <!-- order info from server. need to sync with the payment amount -->
+  <div class="order-info">
+
+  </div>
+
+  <button id="pay-button">pay</button>
   <p>status: -- <scan id="status-indicator">No Action</scan> --</p>
   <a id="back" display="none" href="/">go back to store</a>
 
+  <!-- script need omise.js dependency -->
   <script type="text/javascript" src="https://cdn.omise.co/omise.js"></script>
   <script>
-    (function(){
-      const isToken = (nonce) => nonce.startsWith("tokn_")
-      let totalAmount = 0
+    const isToken = (nonce) => nonce.startsWith("tokn_")
+    // Amount get from server.
+    let totalAmount = 0
 
-      const statusIndicator = document.getElementById("status-indicator")
-      const btn = document.getElementById("pay-button")
-      OmiseCard.configure({
-        publicKey: "pkey_test_5smbjs6xb6845qcglp3"
-      })
-      btn.addEventListener("click", (e) => {
-        e.preventDefault()
-        OmiseCard.open({
-          amount: totalAmount,
-          currency: "THB",
-          defaultPaymentMethod: "credit_card",
-          otherPaymentMethods: "truemoney",
-          submitLabel: "pay for amount",
-          locale: "th",
-          onCreateTokenSuccess: nonce => {
-            if (isToken(nonce)) {
-              statusIndicator.textContent = "Pending"
-              btn.disabled = true
-              fetch("/pay", {
-                method: "POST",
-                headers: {"Content-type": "application/json"},
-                body: JSON.stringify({
-                  payAmount: totalAmount,
-                  token: nonce
-                }),
+    // Show status when payment is processing.
+    const statusIndicator = document.getElementById("status-indicator")
+
+    // Config public key got from omise dashboard.
+    OmiseCard.configure({
+      publicKey: "pkey_test_5smbjs6xb6845qcglp3"
+    })
+    // Button to open omise pre-build widget.
+    const btn = document.getElementById("pay-button")
+    // event to open the payment widget.
+    btn.addEventListener("click", (e) => {
+      e.preventDefault()
+      // omise pre-build config object.
+      OmiseCard.open({
+        amount: totalAmount,
+        currency: "THB",
+        defaultPaymentMethod: "credit_card",
+        otherPaymentMethods: "truemoney",
+        submitLabel: "pay for amount",
+        // Set language to thai.
+        locale: "th",
+        // This callback will call when omise server response back the token/source.
+        // Token is the encrypt credit card info from omise server, only for credit card payment.
+        // ****** DO NOT send credit card info to other server than omise server. ********
+        // Source are for other payment method.
+        onCreateTokenSuccess: nonce => {
+          // This only checking for token not source.
+          if (isToken(nonce)) {
+            // Update status before send token to server.
+            statusIndicator.textContent = "Pending"
+            // Disable button for one time payment prevent user from got charged multiple time.
+            // If error user need to do all the process from start.
+            btn.disabled = true
+            fetch("/pay", {
+              method: "POST",
+              headers: {"Content-type": "application/json"},
+              body: JSON.stringify({
+                payAmount: totalAmount,
+                token: nonce
+              }),
+            })
+              .then(res => res.json())
+              .then(data => {
+                console.log(data)
+                statusIndicator.textContent = "Paid"
               })
-                .then(res => res.json())
-                .then(data => {
-                  console.log(data)
-                  statusIndicator.textContent = "Paid"
-                })
-                .catch(error => {
-                  console.log(error)
-                  statusIndicator.textContent = "Error"
-                })
-              return
-            }
-            console.log(nonce)
-          },
-          onFormClosed: () => {
-            console.log("close form")
+              .catch(error => {
+                console.log(error)
+                statusIndicator.textContent = "Error"
+              })
+            return
           }
-        })
+          console.log(nonce)
+        }
       })
-    })()
+    })
   </script>
 </body>
 </html>
