@@ -40,19 +40,82 @@ func servePayment(w http.ResponseWriter, r *http.Request) {
 	paymentTemp.Execute(w, nil)
 }
 
-type customerOrder struct {
+type purchaseItem struct {
+	ID   string
+	Name string
+}
+
+type ownershipPageData struct {
+	PurchaseItems []*purchaseItem
+	Customer      *customer
+	OrderId       string
+}
+
+func serveOwnershipInput(w http.ResponseWriter, r *http.Request) {
+	osTemp := template.Must(template.ParseFiles("./views/ownership.html"))
+	orderId := r.URL.Query().Get("order")
+	order, err := orderStore.getOrder(orderId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	// prepare for the owner input list on client.
+	var itemList []*purchaseItem
+	pc := &ProductController{}
+	for id, qty := range order.Purchase {
+		prod := pc.getDbProduct(id)
+		for i := 0; i < qty; i++ {
+			// send item name and id to client.
+			pi := &purchaseItem{ID: id, Name: prod.Name}
+			itemList = append(itemList, pi)
+		}
+	}
+	// response data
+	osData := ownershipPageData{
+		PurchaseItems: itemList,
+		Customer:      order.Owner,
+		OrderId:       orderId,
+	}
+	osTemp.Execute(w, osData)
+}
+
+// each item customer buy.
+type customerPurchase struct {
 	ID  string `json:"id"`
 	Qty int    `json:"qty"`
 }
 
+type customerOrder struct {
+	Cart     []customerPurchase `json:"cart"`
+	Customer customer           `json:"customer"`
+}
+
 func processOrder(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	var order []customerOrder
-	json.Unmarshal([]byte(r.FormValue("data")), &order)
+	w.Header().Set("Content-Type", "application/json")
+	var cusOrder customerOrder
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&cusOrder)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if len(cusOrder.Cart) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("{\"error\":\"cannot process with empty cart\"}"))
+		return
+	}
 	// register order to order store
+	systemOrder := &order{
+		Status:   pending,
+		Owner:    &cusOrder.Customer,
+		Purchase: map[string]int{},
+	}
+	for _, item := range cusOrder.Cart {
+		systemOrder.Purchase[item.ID] = item.Qty
+	}
 	// get order id
-	fmt.Println(order)
-	http.Redirect(w, r, "/getPay?order=", http.StatusFound)
+	orderId := orderStore.addOrder(systemOrder)
+	w.WriteHeader(http.StatusOK)
+	encoder := json.NewEncoder(w)
+	encoder.Encode(map[string]string{"orderId": orderId})
 }
 
 // type use in handlePay function

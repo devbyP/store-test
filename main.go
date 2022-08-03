@@ -22,6 +22,7 @@ func main() {
 	temps = parseTemplate("./views/*.html")
 
 	r.HandleFunc("/", serveStore)
+	r.HandleFunc("/owner-input", serveOwnershipInput)
 	r.HandleFunc("/getPay", servePayment)
 	r.HandleFunc("/process", processOrder)
 	r.HandleFunc("/pay", handleBuy)
