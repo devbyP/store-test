@@ -7,16 +7,31 @@
   <title>Test Store</title>
 </head>
 <body>
-  <ul class="product-owner-input">
+  <div>
+    <p>{{ .Customer.FirstName }}</p>
+    <p>{{ .Customer.LastName }}</p>
+    <p>{{ .Customer.Email }}</p>
+  </div>
+  <div class="product-owner-input">
     {{ range .PurchaseItems }}
-      <li>
-      </li>
+      <div>
+        <h2>Item name {{ .Name }}</h2>
+        <label>first name</label>
+        <input type="text"/>
+        <br>
+        <label>last name</label>
+        <input type="text"/>
+        <br>
+        <label>email</label>
+        <input type="email"/>
+        <br>
+        <label>contact no</label>
+        <input type="text"/>
+      </div>
     {{ end }}
-  </ul>
+  </div>
 
-  <form id="to-payment">
-    <input type="hidden" value="{{ .OrderId }}"/>
-  </form>
+  <a href="/getPay?orderId={{ .OrderId }}">to payment</a>
 
   <script>
     const form = document.getElementById('to-payment')
