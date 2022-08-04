@@ -7,7 +7,8 @@
   <title>Test Store - Payment</title>
 </head>
 <body>
-  total
+  total {{.}}
+  <input id="total-price" type="hidden" value="{{.}}">
   <!-- order info from server. need to sync with the payment amount -->
   <div class="order-info">
 
@@ -23,6 +24,10 @@
     const isToken = (nonce) => nonce.startsWith("tokn_")
     // Amount get from server.
     let totalAmount = 0
+    window.onload = () => {
+      const total = document.getElementById("total-price")
+      totalAmount = parseInt(total.getAttribute(value))
+    }
 
     // Show status when payment is processing.
     const statusIndicator = document.getElementById("status-indicator")

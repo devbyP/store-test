@@ -28,7 +28,7 @@ func serveStore(w http.ResponseWriter, r *http.Request) {
 
 // payment page.
 func servePayment(w http.ResponseWriter, r *http.Request) {
-	orderId := r.URL.Query().Get("order")
+	orderId := r.URL.Query().Get("orderId")
 	paymentTemp := template.Must(template.ParseFiles("./views/payment.html"))
 	order, err := orderStore.getOrder(orderId)
 	if err != nil {
@@ -37,7 +37,12 @@ func servePayment(w http.ResponseWriter, r *http.Request) {
 	if order.Status != pending {
 		http.Error(w, "order already closed", http.StatusBadRequest)
 	}
-	paymentTemp.Execute(w, nil)
+	pd := &ProductController{}
+	var sum float64
+	for id, qty := range order.Purchase {
+		sum += pd.getDbProduct(id).Price * float64(qty)
+	}
+	paymentTemp.Execute(w, sum)
 }
 
 type purchaseItem struct {
@@ -53,10 +58,11 @@ type ownershipPageData struct {
 
 func serveOwnershipInput(w http.ResponseWriter, r *http.Request) {
 	osTemp := template.Must(template.ParseFiles("./views/ownership.html"))
-	orderId := r.URL.Query().Get("order")
+	orderId := r.URL.Query().Get("orderId")
 	order, err := orderStore.getOrder(orderId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	// prepare for the owner input list on client.
 	var itemList []*purchaseItem
