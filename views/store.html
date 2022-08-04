@@ -40,13 +40,13 @@
     cart element.
     hidden when cart empty.
   -->
-  <form id="to-next" method="GET" action="/owner-input">
+  <form id="to-next">
     <label for="cusFirstName">First name</label>
-    <input id="cusFirstName" type="text" name="firstName" />
+    <input required id="cusFirstName" type="text" name="firstName" />
     <label for="cusLastName">Last name</label>
-    <input id="cusLastName" type="text" name="lastName" />
+    <input required id="cusLastName" type="text" name="lastName" />
     <label for="cusEmail">Email</label>
-    <input id="cusEmail" type="email" name="email" />
+    <input required id="cusEmail" type="email" name="email" />
     <div class="purchase-conclude" id="cart">
       <p>cart</p>
       <ul class="item-list" id="item-list">
@@ -104,7 +104,7 @@
      * value of total price cannot be more than 15,000 bath 1.500.000 satang
     */
     const totalPrice = document.getElementById("total-m")
-    
+
     // cart element to render inside item list ul.
     function createCartItem(itemName, qty, price) {
       const li = document.createElement("li")
@@ -152,7 +152,7 @@
     }
 
     // Form to submit to post request to server.
-    const form = document.getElementById("to-next")
+    const toNextForm = document.getElementById("to-next")
 
     // Button to go to the next owner input page.
     const buy = document.getElementById("buy-btn")
@@ -162,7 +162,7 @@
     */
     buy.addEventListener("click", (e) => {
       e.preventDefault()
-      const data = new FormData(form)
+      const data = new FormData(toNextForm)
       const firstName = data.get("firstName")
       const lastName = data.get("lastName")
       const email = data.get("email")
@@ -180,9 +180,10 @@
         })
       })
         .then(res => res.json())
-        .then(data => console.log(data))
+        .then(data => {
+          location.href = `/owner-input?orderId=${data.orderId}`
+        })
         .catch(error => console.log(error))
-
     })
   </script>
 </body>
